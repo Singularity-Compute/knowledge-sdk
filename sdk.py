@@ -232,6 +232,67 @@ class _ChatAPI:
         )
 
 
+class _DocumentsAPI:
+    def __init__(self, client: "RAGOpenAIClient"):
+        self._client = client
+
+    def list(self, *, project_id: str, limit: int = 50, offset: int = 0) -> Dict[str, Any]:
+        return self._client._request_json(
+            "GET",
+            f"/api/v1/projects/{project_id}/documents?limit={limit}&offset={offset}",
+        )
+
+    def get(self, *, doc_id: str) -> Dict[str, Any]:
+        return self._client._request_json("GET", f"/api/v1/documents/{doc_id}")
+
+    def delete(self, *, doc_id: str) -> Dict[str, Any]:
+        return self._client._request_json("DELETE", f"/api/v1/documents/{doc_id}")
+
+    def status(self, *, doc_id: str) -> Dict[str, Any]:
+        return self._client._request_json("GET", f"/api/v1/documents/{doc_id}/status")
+
+    def processing_status(self, *, doc_id: str) -> Dict[str, Any]:
+        """
+        Return normalized status flags on top of the raw `/status` event.
+        """
+        event = self.status(doc_id=doc_id)
+        event_type = str(event.get("event_type", "")).lower()
+        imported = event_type in {"ingested", "processed", "embeddings_created", "indexed"}
+        vectorized = event_type in {"embeddings_created", "indexed"}
+        failed = event_type == "error_processing"
+        ready = event_type == "indexed"
+        return {
+            "doc_id": doc_id,
+            "event_type": event_type,
+            "imported": imported,
+            "vectorized": vectorized,
+            "ready": ready,
+            "failed": failed,
+            "raw": event,
+        }
+
+    def wait_until_ready(
+        self,
+        *,
+        doc_id: str,
+        timeout_seconds: float = 300.0,
+        poll_interval_seconds: float = 2.0,
+    ) -> Dict[str, Any]:
+        """
+        Poll document status until it is indexed, fails, or times out.
+        """
+        deadline = time.time() + timeout_seconds
+        while True:
+            status = self.processing_status(doc_id=doc_id)
+            if status["ready"]:
+                return status
+            if status["failed"]:
+                raise SDKError(f"document processing failed: {doc_id}")
+            if time.time() >= deadline:
+                raise SDKError(f"document was not ready before timeout: {doc_id}")
+            time.sleep(poll_interval_seconds)
+
+
 class RAGOpenAIClient:
     """
     Python SDK for gate_v2 API.
@@ -261,6 +322,7 @@ class RAGOpenAIClient:
         self._session = requests.Session()
         self.projects = _ProjectsAPI(self)
         self.chat = _ChatAPI(self)
+        self.documents = _DocumentsAPI(self)
 
     def close(self) -> None:
         self._session.close()

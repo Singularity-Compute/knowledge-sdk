@@ -8,14 +8,14 @@ Auth:
 ## Install
 
 ```bash
-pip install -r client/requirements.txt
+pip install -r requirements.txt
 ```
 
 ## Quick Start
 
 ```python
 import os
-from client import ClientAuth, RAGOpenAIClient
+from sdk import ClientAuth, RAGOpenAIClient
 
 client = RAGOpenAIClient(
     base_url=os.environ["RAG_GATEWAY_URL"],
@@ -67,13 +67,28 @@ for chunk in events:
 
 `client.upload_document(project_id=..., file_path=..., title=..., description=...)`
 
+## Document APIs
+
+- `client.documents.list(project_id, limit=50, offset=0)`
+- `client.documents.get(doc_id=...)`
+- `client.documents.delete(doc_id=...)`
+- `client.documents.status(doc_id=...)` (raw gateway event)
+- `client.documents.processing_status(doc_id=...)` (normalized flags)
+- `client.documents.wait_until_ready(doc_id=..., timeout_seconds=300, poll_interval_seconds=2)`
+
+`processing_status` returns:
+- `imported` - text/content is ingested into processing pipeline
+- `vectorized` - embeddings are created
+- `ready` - document is indexed and retrievable
+- `failed` - processing failed (`error_processing`)
+
 ## Examples
 
 All snippets below assume:
 
 ```python
 import os
-from client import ClientAuth, RAGOpenAIClient
+from sdk import ClientAuth, RAGOpenAIClient
 
 base_url = os.environ["RAG_GATEWAY_URL"]
 api_key = os.environ["RAG_API_KEY"]
@@ -178,26 +193,60 @@ with RAGOpenAIClient(base_url=base_url, auth=ClientAuth(api_key=api_key)) as cli
     print("deleted:", deleted)
 ```
 
+### 6) Upload and wait for indexing
+
+```python
+from pathlib import Path
+
+file_path = Path("/path/to/doc.pdf")
+
+with RAGOpenAIClient(base_url=base_url, auth=ClientAuth(api_key=api_key)) as client:
+    project = client.projects.ensure(name="sdk-demo-status")
+    uploaded = client.upload_document(
+        project_id=project["project_id"],
+        file_path=file_path,
+    )
+    doc_id = uploaded["doc_id"]
+
+    status = client.documents.wait_until_ready(doc_id=doc_id, timeout_seconds=180)
+    print("ready:", status["ready"], "vectorized:", status["vectorized"])
+```
+
+### 7) List and delete document
+
+```python
+with RAGOpenAIClient(base_url=base_url, auth=ClientAuth(api_key=api_key)) as client:
+    project = client.projects.ensure(name="sdk-demo-manage-docs")
+    docs_page = client.documents.list(project_id=project["project_id"], limit=20, offset=0)
+    for doc in docs_page["documents"]:
+        print(doc["doc_id"], doc.get("title"))
+
+    if docs_page["documents"]:
+        first_doc_id = docs_page["documents"][0]["doc_id"]
+        client.documents.delete(doc_id=first_doc_id)
+        print("deleted:", first_doc_id)
+```
+
 ## Tests
 
-SDK tests are in `client/tests`.
+SDK tests are in `tests`.
 
 Run:
 
 ```bash
-python -m unittest discover -s client/tests -p "test_*.py"
+python -m unittest discover -s tests -p "test_*.py"
 ```
 
 ## Smoke Tests (SDK + Service)
 
-Live end-to-end smoke checks are in `client/smoke`.
+Live end-to-end smoke checks are in `smoke`.
 
 Run:
 
 ```bash
 export RAG_GATEWAY_URL="https://your-gateway-host"
 export RAG_API_KEY="sk-..."
-python -m client.smoke.run_smoke
+python -m smoke.run_smoke
 ```
 
 This validates SDK methods and the running gateway service in one pass.
@@ -205,4 +254,4 @@ This validates SDK methods and the running gateway service in one pass.
 ## Diagrams
 
 Mermaid diagrams for SDK flows:
-- `client/MERMAID_DOCS.md`
+- `MERMAID_DOCS.md`

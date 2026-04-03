@@ -4,12 +4,12 @@ import os
 import sys
 from pathlib import Path
 
-from client import ClientAuth, RAGOpenAIClient
+from sdk import ClientAuth, RAGOpenAIClient
 
 
 def main() -> None:
     if len(sys.argv) < 2:
-        raise SystemExit("Usage: python client/examples/upload_and_chat.py /path/to/document")
+        raise SystemExit("Usage: python examples/upload_and_chat.py /path/to/document")
 
     file_path = Path(sys.argv[1]).expanduser().resolve()
     if not file_path.exists():

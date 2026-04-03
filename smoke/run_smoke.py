@@ -6,7 +6,7 @@ import tempfile
 import uuid
 from pathlib import Path
 
-from client import APIError, ClientAuth, RAGOpenAIClient
+from sdk import APIError, ClientAuth, RAGOpenAIClient
 
 
 def _require_env(name: str) -> str:

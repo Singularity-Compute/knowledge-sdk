@@ -3,7 +3,7 @@ from __future__ import annotations
 import os
 import uuid
 
-from client import ClientAuth, RAGOpenAIClient
+from sdk import ClientAuth, RAGOpenAIClient
 
 
 def main() -> None:
