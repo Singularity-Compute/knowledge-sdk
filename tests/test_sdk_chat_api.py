@@ -18,6 +18,7 @@ class SDKChatAPITests(unittest.TestCase):
             result = client.chat.create(
                 project_id="project-1",
                 messages=[{"role": "user", "content": "Hello"}],
+                agent_mode="multi",
             )
 
         self.assertEqual(result, expected)
@@ -25,6 +26,7 @@ class SDKChatAPITests(unittest.TestCase):
         kwargs = mocked_create.call_args.kwargs
         self.assertEqual(kwargs["project_id"], "project-1")
         self.assertEqual(kwargs["messages"], [{"role": "user", "content": "Hello"}])
+        self.assertEqual(kwargs["agent_mode"], "multi")
         client.close()
 
     def test_chat_create_builds_query_and_history(self) -> None:
@@ -48,12 +50,14 @@ class SDKChatAPITests(unittest.TestCase):
                     {"role": "assistant", "content": "Sure"},
                     {"role": "user", "content": "Summarize docs"},
                 ],
+                agent_mode="multi",
             )
 
         self.assertEqual(captured_payload["method"], "POST")
         self.assertEqual(captured_payload["path"], "/api/v1/chat")
         self.assertEqual(captured_payload["json_body"]["project_id"], "project-1")
         self.assertEqual(captured_payload["json_body"]["query"], "Summarize docs")
+        self.assertEqual(captured_payload["json_body"]["agent_mode"], "multi")
         self.assertEqual(
             captured_payload["json_body"]["history"],
             [
@@ -62,6 +66,23 @@ class SDKChatAPITests(unittest.TestCase):
             ],
         )
         self.assertEqual(response["choices"][0]["message"]["content"], "OK")
+        client.close()
+
+    def test_chat_response_exposes_agent_mode_in_rag_metadata(self) -> None:
+        client = RAGOpenAIClient(
+            base_url="https://gateway.example",
+            auth=ClientAuth(api_key="sk-test"),
+        )
+        with patch.object(
+            client,
+            "_request_json",
+            return_value={"answer": "OK", "sources": [], "context": [], "agent_mode": "multi"},
+        ):
+            response = client.chat.create(
+                project_id="project-1",
+                messages=[{"role": "user", "content": "Summarize docs"}],
+            )
+        self.assertEqual(response["rag"]["agent_mode"], "multi")
         client.close()
 
     def test_chat_create_requires_last_message_to_be_non_empty_user(self) -> None:

@@ -89,6 +89,7 @@ class _ChatCompletionsAPI:
         use_fact_queries: bool | None = None,
         use_retry: bool | None = None,
         use_tools: bool | None = None,
+        agent_mode: str | None = None,
         filters: Dict[str, Any] | None = None,
     ) -> Dict[str, Any] | Iterator[Dict[str, Any]]:
         query, history = self._split_messages(messages)
@@ -107,6 +108,7 @@ class _ChatCompletionsAPI:
             "use_fact_queries": use_fact_queries,
             "use_retry": use_retry,
             "use_tools": use_tools,
+            "agent_mode": agent_mode,
             "filters": filters,
         }
         payload.update({k: v for k, v in optional.items() if v is not None})
@@ -184,6 +186,7 @@ class _ChatCompletionsAPI:
                 "context": raw.get("context", []),
                 "partial": raw.get("partial", False),
                 "degraded": raw.get("degraded", []),
+                "agent_mode": raw.get("agent_mode", "single"),
                 "raw": raw,
             },
         }
@@ -208,6 +211,7 @@ class _ChatAPI:
         use_fact_queries: bool | None = None,
         use_retry: bool | None = None,
         use_tools: bool | None = None,
+        agent_mode: str | None = None,
         filters: Dict[str, Any] | None = None,
     ) -> Dict[str, Any] | Iterator[Dict[str, Any]]:
         """
@@ -228,6 +232,7 @@ class _ChatAPI:
             use_fact_queries=use_fact_queries,
             use_retry=use_retry,
             use_tools=use_tools,
+            agent_mode=agent_mode,
             filters=filters,
         )
 

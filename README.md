@@ -35,6 +35,7 @@ client.close()
 - preferred call is `client.chat.create(...)`
 - input uses `messages=[{role, content}, ...]`
 - output includes `choices[0].message.content`
+- optional `agent_mode` is supported (`single` default, `multi` opt-in)
 - currently **only chat-completions flow is supported**
 - classic `completions` (prompt-based `/v1/completions`) is **not implemented yet**
 
@@ -165,6 +166,7 @@ with RAGOpenAIClient(base_url=base_url, auth=ClientAuth(api_key=api_key)) as cli
         project_id=project["project_id"],
         messages=messages,
         mode="hybrid",
+        agent_mode="multi",
         top_k=5,
         use_hyde=True,
         use_fact_queries=True,
